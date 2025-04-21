@@ -8360,5 +8360,77 @@
   "icu:WhatsNew__v7.51--1": {
     "messageformat": "We also resized the picture-in-picture window and added convenient new shortcuts to mute/unmute your microphone or turn the camera on/off while a call is minimized.",
     "description": "Release notes for version 7.51"
+  },
+  "FilterTab__title": {
+    "message": "Content Filter",
+    "description": "Title for the content filter tab"
+  },
+  "FilterTab__enableFilter": {
+    "message": "Enable content filter",
+    "description": "Label for the checkbox to enable content filtering"
+  },
+  "FilterTab__enableGlobalFilter": {
+    "message": "Enable cross-device filtering",
+    "description": "Label for the checkbox to enable global content filtering"
+  },
+  "FilterTab__globalFilterDescription": {
+    "message": "When enabled, duplicate content will be blocked across all your devices",
+    "description": "Description for the global filter option"
+  },
+  "FilterTab__stats": {
+    "message": "Filter Statistics",
+    "description": "Title for the filter statistics section"
+  },
+  "FilterTab__imagesBlocked": {
+    "message": "Images blocked:",
+    "description": "Label for the number of images blocked"
+  },
+  "FilterTab__textsBlocked": {
+    "message": "Texts blocked:",
+    "description": "Label for the number of texts blocked"
+  },
+  "FilterTab__videosBlocked": {
+    "message": "Videos blocked:",
+    "description": "Label for the number of videos blocked"
+  },
+  "FilterTab__conversations": {
+    "message": "Conversations",
+    "description": "Title for the conversations section"
+  },
+  "FilterTab__conversationsDescription": {
+    "message": "Select which conversations should have content filtering applied",
+    "description": "Description for the conversations section"
+  },
+  "FilterTab__configureAWS": {
+    "message": "Configure AWS",
+    "description": "Button to configure AWS settings"
+  },
+  "FilterTab__awsRegion": {
+    "message": "AWS Region:",
+    "description": "Label for AWS region input"
+  },
+  "FilterTab__awsAccessKey": {
+    "message": "Access Key ID:",
+    "description": "Label for AWS access key input"
+  },
+  "FilterTab__awsSecretKey": {
+    "message": "Secret Access Key:",
+    "description": "Label for AWS secret key input"
+  },
+  "FilterTab__saveAWSConfig": {
+    "message": "Save AWS Configuration",
+    "description": "Button to save AWS configuration"
+  },
+  "FilterTab__testFilter": {
+    "message": "Test Filter",
+    "description": "Button to test the filter"
+  },
+  "FilterTab__resetStats": {
+    "message": "Reset Statistics",
+    "description": "Button to reset filter statistics"
+  },
+  "FilterTab__duplicateDetected": {
+    "message": "Duplicate content detected",
+    "description": "Message shown when duplicate content is detected"
   }
 }

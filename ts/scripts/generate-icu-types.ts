@@ -10,7 +10,16 @@ import prettier from 'prettier';
 import { getICUMessageParams } from '../util/getICUMessageParams';
 import type { ICUMessageParamType } from '../util/getICUMessageParams';
 import { missingCaseError } from '../util/missingCaseError';
-import globalMessages from '../../_locales/en/messages.json';
+import globalMessagesJson from '../../_locales/en/messages.json';
+
+// Define the expected shape of each message descriptor
+interface MessageDescriptor {
+  messageformat: string;
+  description: string;
+}
+
+// Cast imported JSON to the expected type
+const globalMessages: Record<string, MessageDescriptor> = globalMessagesJson as any;
 
 import { DELETED_REGEXP } from './constants';
 
@@ -35,7 +44,6 @@ function translateParamType(
           if (option === 'other') {
             return stringType;
           }
-
           return ts.factory.createLiteralTypeNode(
             ts.factory.createStringLiteral(option, true)
           );
@@ -46,57 +54,52 @@ function translateParamType(
   }
 }
 
-const messageKeys = Object.keys(globalMessages).sort((a, b) => {
-  return a.localeCompare(b);
-}) as Array<keyof typeof globalMessages>;
+const messageKeys = Object.keys(globalMessages).sort((a, b) => a.localeCompare(b));
 
 function filterDefaultParams(params: Map<string, ICUMessageParamType>) {
   const filteredParams = new Map<string, ICUMessageParamType>();
-
   for (const [key, value] of params) {
-    if (key === 'emojify') {
-      continue;
-    }
-
+    if (key === 'emojify') continue;
     filteredParams.set(key, value);
   }
-
   return filteredParams;
 }
 
-const ComponentOrStringNode =
-  ts.factory.createTypeReferenceNode('ComponentOrString');
+const ComponentOrStringNode = ts.factory.createTypeReferenceNode('ComponentOrString');
 const ComponentNode = ts.factory.createTypeReferenceNode('Component');
 const StringToken = ts.factory.createToken(ts.SyntaxKind.StringKeyword);
 const NeverToken = ts.factory.createToken(ts.SyntaxKind.NeverKeyword);
 
 function generateType(name: string, supportsComponents: boolean): ts.Statement {
-  const props = new Array<ts.TypeElement>();
+  const props: ts.TypeElement[] = [];
+
   for (const key of messageKeys) {
-    if (key === 'smartling') {
-      continue;
-    }
+    if (key === 'smartling') continue;
 
     const message = globalMessages[key];
-
-    // Skip deleted strings
-    if ('description' in message && DELETED_REGEXP.test(message.description)) {
-      continue;
-    }
+    if ('description' in message && DELETED_REGEXP.test(message.description)) continue;
 
     const { messageformat } = message;
 
-    const rawParams = getICUMessageParams(messageformat);
+    // Skip if messageformat is empty or invalid
+    if (typeof messageformat !== 'string' || messageformat.trim().length === 0) {
+      console.warn(`Skipping empty ICU message for key ${key}`);
+      continue;
+    }
+
+    let rawParams: Map<string, ICUMessageParamType>;
+    try {
+      rawParams = getICUMessageParams(messageformat);
+    } catch (e) {
+      console.warn(`Invalid ICU syntax in message for key ${key}, skipping.`, e);
+      continue;
+    }
+
     const params = filterDefaultParams(rawParams);
 
     if (!supportsComponents) {
-      const needsComponents = Array.from(rawParams.values()).some(value => {
-        return value.type === 'jsx';
-      });
-
-      if (needsComponents) {
-        continue;
-      }
+      const needsComponents = Array.from(rawParams.values()).some(v => v.type === 'jsx');
+      if (needsComponents) continue;
     }
 
     const stringType = supportsComponents ? ComponentOrStringNode : StringToken;
@@ -106,8 +109,7 @@ function generateType(name: string, supportsComponents: boolean): ts.Statement {
     if (params.size === 0) {
       paramType = ts.factory.createToken(ts.SyntaxKind.UndefinedKeyword);
     } else {
-      const subTypes = new Array<ts.TypeElement>();
-
+      const subTypes: ts.TypeElement[] = [];
       for (const [paramName, value] of params) {
         subTypes.push(
           ts.factory.createPropertySignature(
@@ -118,7 +120,6 @@ function generateType(name: string, supportsComponents: boolean): ts.Statement {
           )
         );
       }
-
       paramType = ts.factory.createTypeLiteralNode(subTypes);
     }
 
@@ -140,19 +141,13 @@ function generateType(name: string, supportsComponents: boolean): ts.Statement {
   );
 }
 
-const statements = new Array<ts.Statement>();
+const statements: ts.Statement[] = [];
 
 let top = ts.factory.createImportDeclaration(
   undefined,
-  ts.factory.createImportClause(
-    true,
-    undefined,
+  ts.factory.createImportClause(true, undefined,
     ts.factory.createNamedImports([
-      ts.factory.createImportSpecifier(
-        false,
-        undefined,
-        ts.factory.createIdentifier('ReactNode')
-      ),
+      ts.factory.createImportSpecifier(false, undefined, ts.factory.createIdentifier('ReactNode'))
     ])
   ),
   ts.factory.createStringLiteral('react')
@@ -163,13 +158,11 @@ top = ts.addSyntheticLeadingComment(
   ts.SyntaxKind.SingleLineCommentTrivia,
   ` Copyright ${new Date().getFullYear()} Signal Messenger, LLC`
 );
-
 top = ts.addSyntheticLeadingComment(
   top,
   ts.SyntaxKind.SingleLineCommentTrivia,
   ' SPDX-License-Identifier: AGPL-3.0-only'
 );
-
 statements.push(top);
 
 const JSXElement = ts.factory.createTypeReferenceNode(
@@ -185,20 +178,18 @@ statements.push(
       JSXElement,
       ts.factory.createFunctionTypeNode(
         undefined,
-        [
-          ts.factory.createParameterDeclaration(
-            undefined,
-            undefined,
-            'parts',
-            undefined,
-            ts.factory.createTypeReferenceNode('Array', [
-              ts.factory.createUnionTypeNode([
-                ts.factory.createToken(ts.SyntaxKind.StringKeyword),
-                JSXElement,
-              ]),
-            ])
-          ),
-        ],
+        [ts.factory.createParameterDeclaration(
+          undefined,
+          undefined,
+          'parts',
+          undefined,
+          ts.factory.createTypeReferenceNode('Array', [
+            ts.factory.createUnionTypeNode([
+              ts.factory.createToken(ts.SyntaxKind.StringKeyword),
+              JSXElement,
+            ]),
+          ])
+        )],
         JSXElement
       ),
     ])
@@ -224,7 +215,6 @@ statements.push(
 );
 
 statements.push(generateType('ICUJSXMessageParamsByKeyType', true));
-
 statements.push(generateType('ICUStringMessageParamsByKeyType', false));
 
 const root = ts.factory.createSourceFile(
@@ -241,20 +231,10 @@ const resultFile = ts.createSourceFile(
   ts.ScriptKind.TS
 );
 const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-const unformattedOutput = printer.printNode(
-  ts.EmitHint.Unspecified,
-  root,
-  resultFile
-);
+const unformattedOutput = printer.printNode(ts.EmitHint.Unspecified, root, resultFile);
 
 async function main() {
-  const destinationPath = path.join(
-    __dirname,
-    '..',
-    '..',
-    'build',
-    'ICUMessageParams.d.ts'
-  );
+  const destinationPath = path.join(__dirname, '..', '..', 'build', 'ICUMessageParams.d.ts');
 
   let oldHash: string | undefined;
   try {
@@ -262,7 +242,7 @@ async function main() {
       .update(await fs.readFile(destinationPath))
       .digest('hex');
   } catch {
-    // Ignore errors
+    // ignore
   }
 
   const prettierConfig = await prettier.resolveConfig(destinationPath);
@@ -278,6 +258,7 @@ async function main() {
 
   await fs.writeFile(destinationPath, output);
 }
+
 main().catch(error => {
   console.error(error);
   process.exit(1);

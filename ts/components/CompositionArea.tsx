@@ -87,6 +87,7 @@ import type { EmojiSkinTone } from './fun/data/emojis';
 import type { StickerPackType, StickerType } from '../state/ducks/stickers';
 import { FunPickerButton } from './fun/FunButton';
 import { isFunPickerEnabled } from './fun/isFunPickerEnabled';
+import { AttachmentFilterToggle } from '../attachment/AttachmentFilterToggle';
 
 export type OwnProps = Readonly<{
   acceptedMessageRequest: boolean | null;
@@ -168,6 +169,7 @@ export type OwnProps = Readonly<{
       message?: string;
       timestamp?: number;
       voiceNoteAttachment?: InMemoryAttachmentDraftType;
+      filterEnabled?: boolean;
     }
   ): unknown;
   quotedMessageId: string | null;
@@ -404,6 +406,15 @@ export const CompositionArea = memo(function CompositionArea({
     // Not edit message, but has attachments
     (draftEditMessage == null && draftAttachments.length !== 0);
 
+  const [filterEnabled, setFilterEnabled] = useState(() => {
+    const saved = window.localStorage.getItem('attachmentFilterEnabled');
+    return saved === 'true';
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem('attachmentFilterEnabled', filterEnabled.toString());
+  }, [filterEnabled]);
+
   const handleSubmit = useCallback(
     (
       message: string,
@@ -431,6 +442,7 @@ export const CompositionArea = memo(function CompositionArea({
           bodyRanges,
           message,
           timestamp,
+          filterEnabled,
         });
       }
       setLarge(false);
@@ -447,6 +459,7 @@ export const CompositionArea = memo(function CompositionArea({
       sendEditedMessage,
       sendMultiMediaMessage,
       setLarge,
+      filterEnabled,
     ]
   );
 
@@ -786,9 +799,14 @@ export const CompositionArea = memo(function CompositionArea({
   ) : null;
 
   const isRecording = recordingState === RecordingState.Recording;
-  const attButton =
+  let attButton =
     draftEditMessage || linkPreviewResult || isRecording ? undefined : (
       <div className="CompositionArea__button-cell">
+        <AttachmentFilterToggle
+          isEnabled={filterEnabled}
+          onToggle={setFilterEnabled}
+          ariaLabel={i18n('icu:attachmentFilterToggleLabel')}
+        />
         <button
           type="button"
           className="CompositionArea__attach-file"
@@ -992,7 +1010,7 @@ export const CompositionArea = memo(function CompositionArea({
     );
   }
 
-  // If no message request, but we haven't shared profile yet, we show profile-sharing UI
+  // Ifno messagerequest, but we haven't shared profile yet, we show profile-sharing UI
   if (
     !left &&
     (conversationType === 'direct' ||
@@ -1114,7 +1132,7 @@ export const CompositionArea = memo(function CompositionArea({
             ourConversationId={ourConversationId}
             platform={platform}
             recentStickers={recentStickers}
-            emojiSkinToneDefault={emojiSkinToneDefault}
+            emojiSkinToneDefault={emojiSkinToneDefault ?? null}
             sortedGroupMembers={sortedGroupMembers}
           />
         )}

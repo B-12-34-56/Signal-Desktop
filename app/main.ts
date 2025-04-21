@@ -124,6 +124,9 @@ import { LINUX_PASSWORD_STORE_FLAGS } from '../ts/util/linuxPasswordStoreFlags';
 import { getOwn } from '../ts/util/getOwn';
 import { safeParseLoose, safeParseUnknown } from '../ts/util/schemas';
 import { getAppErrorIcon } from '../ts/util/getAppErrorIcon';
+// Add this to the existing main.ts file to register the filter service
+
+import { FilterService } from "./filter"
 
 const animationSettings = systemPreferences.getAnimationSettings();
 
@@ -217,6 +220,57 @@ const DISABLE_IPV6 = process.argv.some(arg => arg === '--disable-ipv6');
 const FORCE_ENABLE_CRASH_REPORTS = process.argv.some(
   arg => arg === '--enable-crash-reports'
 );
+
+// Initialize the filter service
+const filterService = new FilterService()
+
+// Register the filter service with the app
+window.Signal = (window.Signal || {}) as any
+window.Signal.Services = (window.Signal.Services || {}) as any
+;(window.Signal.Services as any).filterService = filterService
+
+// Add filter hooks to the attachment pipeline
+// grab a single any‑typed handle on the migrations module
+const migrations: any = window.Signal.Migrations;
+
+// 1) override handleMessage
+const originalHandleMessage = migrations.handleMessage;
+migrations.handleMessage = async (message: any) => {
+  // Check if it's a text message
+  if (message?.body) {
+    const shouldAllow = await filterService.handleTextMessage(message.body);
+    if (!shouldAllow) {
+      throw new Error("Duplicate text detected and blocked by filter");
+    }
+  }
+
+  // Continue with original handler
+  return originalHandleMessage.call(migrations, message);
+};
+
+// 2) override handleAttachment
+const originalHandleAttachment = migrations.handleAttachment;
+migrations.handleAttachment = async (attachment: any) => {
+  // Check if it's an image
+  if (attachment?.contentType?.startsWith("image/")) {
+    const shouldAllow = await filterService.handleImageAttachment(attachment);
+    if (!shouldAllow) {
+      throw new Error("Duplicate image detected and blocked by filter");
+    }
+  }
+
+  // Check if it's a video
+  if (attachment?.contentType?.startsWith("video/")) {
+    const shouldAllow = await filterService.handleVideoAttachment(attachment);
+    if (!shouldAllow) {
+      throw new Error("Duplicate video detected and blocked by filter");
+    }
+  }
+
+  // Continue with original handler
+  return originalHandleAttachment.call(migrations, attachment);
+};
+
 
 const CLI_LANG = cliOptions.lang as string | undefined;
 
