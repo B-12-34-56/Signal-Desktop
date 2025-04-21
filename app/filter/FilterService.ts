@@ -1,14 +1,21 @@
 import { getImageHash, compareImageHashes } from "./imageHash"
 import { getTextSimilarity } from "./textFilter"
 import * as crypto from "crypto"
+import { ImageUploadService } from "./imageUploadService"
+import { ImageTagService, type ImageTag } from "./imageTagService"
 
 export class FilterService {
   private isEnabled = true
   private isGlobalEnabled = true
   private similarityThreshold = 90 // Percentage threshold for similarity
+  private tagFilterThreshold = 70 // New threshold for tag-based filtering
+  private imageUploadService: ImageUploadService
+  private imageTagService: ImageTagService
 
   constructor() {
     this.loadSettings()
+    this.imageUploadService = new ImageUploadService()
+    this.imageTagService = new ImageTagService()
   }
 
   private async loadSettings(): Promise<void> {
@@ -18,10 +25,16 @@ export class FilterService {
         this.isEnabled = settings.isEnabled
         this.isGlobalEnabled = settings.isGlobalEnabled
         this.similarityThreshold = settings.similarityThreshold || 90
+        this.tagFilterThreshold = settings.tagFilterThreshold || 70
       }
     } catch (error) {
       console.error("Failed to load filter settings:", error)
     }
+  }
+
+  public async handleImageTags(imageData: Buffer): Promise<ImageTag[]> {
+    const response = await this.imageTagService.detectTags({ imageData })
+    return response.success ? response.tags : []
   }
 
   public async handleImageAttachment(attachment: any): Promise<boolean> {
@@ -52,16 +65,51 @@ export class FilterService {
         }
       }
 
+      // Upload image to S3
+      const uploadResponse = await this.imageUploadService.uploadImage({
+        imageData: attachment.data,
+        fileName: attachment.fileName || "image",
+        contentType: attachment.contentType || "image/jpeg"
+      })
+
+      if (!uploadResponse.success) {
+        console.error("Image upload failed:", uploadResponse.error)
+        return false
+      }
+
+      // Detect and process tags
+      const tagResponse = await this.imageTagService.detectTags({
+        s3Key: uploadResponse.key,
+        s3Bucket: this.imageUploadService.bucketName
+      })
+
+      // Check for unsafe content
+      if (tagResponse.success) {
+        const { isUnsafe } = this.imageTagService.checkUnsafeContent(
+          tagResponse.tags,
+          this.tagFilterThreshold
+        )
+        if (isUnsafe) {
+          await this.imageUploadService.deleteImage(uploadResponse.key)
+          return false
+        }
+      }
+
       // If not a duplicate, save the hash
       await window.Signal.Data.saveContentHash({
         hash: imageHash,
         contentType: "image",
         timestamp: Date.now(),
+        tags: tagResponse.success ? tagResponse.tags : []
       })
 
       // Save to global store if enabled
       if (this.isGlobalEnabled) {
-        await this.saveToGlobalStore(imageHash, "image")
+        await this.saveToGlobalStore(
+          imageHash,
+          "image",
+          tagResponse.success ? tagResponse.tags : []
+        )
       }
 
       return true // Allow the image
@@ -151,7 +199,11 @@ export class FilterService {
     }
   }
 
-  private async saveToGlobalStore(contentHash: string, contentType: "image" | "text" | "video"): Promise<void> {
+  private async saveToGlobalStore(
+    contentHash: string,
+    contentType: "image" | "text" | "video",
+    tags: ImageTag[] = []
+  ): Promise<void> {
     try {
       // Initialize AWS SDK and DynamoDB client
       const { DynamoDBClient } = require("@aws-sdk/client-dynamodb")
@@ -168,6 +220,7 @@ export class FilterService {
           timestamp: new Date().toISOString(),
           deviceId: window.textsecure.storage.user.getDeviceId(),
           userId: window.textsecure.storage.user.getNumber(),
+          tags: JSON.stringify(tags)
         },
       }
 

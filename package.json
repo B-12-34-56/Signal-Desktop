@@ -105,6 +105,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "latest",
+    "@aws-sdk/client-rekognition": "^3.787.0",
+    "@aws-sdk/client-s3": "^3.787.0",
     "@aws-sdk/lib-dynamodb": "latest",
     "@electron/asar": "3.3.1",
     "@formatjs/fast-memoize": "2.2.3",
@@ -292,9 +294,12 @@
     "@storybook/test": "8.4.4",
     "@storybook/test-runner": "0.22.0",
     "@storybook/types": "8.1.11",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/backbone": "1.4.22",
     "@types/blueimp-load-image": "5.16.6",
-    "@types/chai": "4.3.16",
+    "@types/chai": "4.4.1",
     "@types/chai-as-promised": "7.1.4",
     "@types/config": "3.3.5",
     "@types/dashdash": "1.14.3",
@@ -331,6 +336,7 @@
     "@types/yargs": "17.0.33",
     "@typescript-eslint/eslint-plugin": "6.18.1",
     "@typescript-eslint/parser": "6.18.1",
+    "aws-sdk-mock": "^6.2.1",
     "axe-core": "4.10.2",
     "babel-core": "7.0.0-bridge.0",
     "babel-loader": "9.2.1",
@@ -362,6 +368,7 @@
     "execa": "5.1.1",
     "html-webpack-plugin": "5.6.3",
     "http-server": "14.1.1",
+    "jest-mock-axios": "^4.8.0",
     "json-to-ast": "2.1.0",
     "log-symbols": "4.1.0",
     "mini-css-extract-plugin": "2.9.2",
@@ -446,10 +453,8 @@
       "sharp",
       "utf-8-validate"
     ],
-    "ignoredBuiltDependencies": [
-      "core-js",
-      "electron-winstaller",
-      "es5-ext",
+    "ignoredBuiltDependencies": [      "core-js",
+      "electron-winstaller",      "es5-ext",
       "protobufjs"
     ]
   },
