@@ -6,17 +6,12 @@
 # SIGNAL DESKTOP DEVELOPMENT CONFIGURATION
 #--------------------------------------------
 
-# Command to run the Signal Desktop application
-run_command: "pnpm start"
+# Command to run when "Run" button clicked
+# This will launch both the main app and sticker creator
+run_command:
+  - pnpm start
+  - cd sticker-creator && pnpm dev
 
-# Command to install or update project dependencies
-dependency_command: "pnpm install"
-
-# Command for building the project from source
-build_command: "pnpm run build"
-
-# Command for running the test suite
-test_command: "pnpm test"
-
-# Command for running the application in development mode
-dev_command: "pnpm run dev"
+# Command to install or update dependencies
+# This will execute each time a new thread is created to ensure dependencies are up-to-date
+dependency_command: pnpm install && cd sticker-creator && pnpm install

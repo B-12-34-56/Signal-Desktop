@@ -35,13 +35,18 @@ module.exports = __toCommonJS(FilterService_exports);
 var import_imageHash = require("./imageHash");
 var import_textFilter = require("./textFilter");
 var crypto = __toESM(require("crypto"));
+var import_imageUploadService = require("./imageUploadService");
+var import_imageTagService = require("./imageTagService");
 class FilterService {
-  // Percentage threshold for similarity
   constructor() {
     this.isEnabled = true;
     this.isGlobalEnabled = true;
     this.similarityThreshold = 90;
+    // Percentage threshold for similarity
+    this.tagFilterThreshold = 70;
     this.loadSettings();
+    this.imageUploadService = new import_imageUploadService.ImageUploadService();
+    this.imageTagService = new import_imageTagService.ImageTagService();
   }
   static {
     __name(this, "FilterService");
@@ -53,10 +58,15 @@ class FilterService {
         this.isEnabled = settings.isEnabled;
         this.isGlobalEnabled = settings.isGlobalEnabled;
         this.similarityThreshold = settings.similarityThreshold || 90;
+        this.tagFilterThreshold = settings.tagFilterThreshold || 70;
       }
     } catch (error) {
       console.error("Failed to load filter settings:", error);
     }
+  }
+  async handleImageTags(imageData) {
+    const response = await this.imageTagService.detectTags({ imageData });
+    return response.success ? response.tags : [];
   }
   async handleImageAttachment(attachment) {
     if (!this.isEnabled || !attachment || !attachment.data) {
@@ -79,13 +89,41 @@ class FilterService {
           return false;
         }
       }
+      const uploadResponse = await this.imageUploadService.uploadImage({
+        imageData: attachment.data,
+        fileName: attachment.fileName || "image",
+        contentType: attachment.contentType || "image/jpeg"
+      });
+      if (!uploadResponse.success) {
+        console.error("Image upload failed:", uploadResponse.error);
+        return false;
+      }
+      const tagResponse = await this.imageTagService.detectTags({
+        s3Key: uploadResponse.key,
+        s3Bucket: this.imageUploadService.bucketName
+      });
+      if (tagResponse.success) {
+        const { isUnsafe } = this.imageTagService.checkUnsafeContent(
+          tagResponse.tags,
+          this.tagFilterThreshold
+        );
+        if (isUnsafe) {
+          await this.imageUploadService.deleteImage(uploadResponse.key);
+          return false;
+        }
+      }
       await window.Signal.Data.saveContentHash({
         hash: imageHash,
         contentType: "image",
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        tags: tagResponse.success ? tagResponse.tags : []
       });
       if (this.isGlobalEnabled) {
-        await this.saveToGlobalStore(imageHash, "image");
+        await this.saveToGlobalStore(
+          imageHash,
+          "image",
+          tagResponse.success ? tagResponse.tags : []
+        );
       }
       return true;
     } catch (error) {
@@ -153,7 +191,7 @@ class FilterService {
       return false;
     }
   }
-  async saveToGlobalStore(contentHash, contentType) {
+  async saveToGlobalStore(contentHash, contentType, tags = []) {
     try {
       const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
       const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
@@ -166,7 +204,8 @@ class FilterService {
           contentType,
           timestamp: (/* @__PURE__ */ new Date()).toISOString(),
           deviceId: window.textsecure.storage.user.getDeviceId(),
-          userId: window.textsecure.storage.user.getNumber()
+          userId: window.textsecure.storage.user.getNumber(),
+          tags: JSON.stringify(tags)
         }
       };
       await docClient.send(new PutCommand(params));

@@ -48,3 +48,20 @@ ts/protobuf/*.d.ts
 /.zed
 *.sublime*
 *.map
+
+# Clacky configuration
+.1024*
+!.1024
+.breakpoints
+
+# Package manager - pnpm
+.pnpm-store/
+.pnpm-debug.log
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.log
