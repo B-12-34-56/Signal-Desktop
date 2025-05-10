@@ -1,15 +1,41 @@
-// Add this to the existing LeftPaneDialog.tsx file to include the filter tab
+// app/left-pane/LeftPaneDialog.tsx
 
-// Add this import
-import { SmartFilterTab } from "./LeftPaneFilterTab"
+import { LeftPaneMode } from '../constants/LeftPaneMode'; // adjust to your real path
+import { SmartFilterTab } from './LeftPaneFilterTab';
+import { InboxArchiveTab } from './InboxArchiveTab';
+import { MessageRequestsTab } from './MessageRequestsTab';
+// … other imports …
 
-// Add this to the LeftPaneDialog component's render method, in the tabs section
-// Look for the existing tabs like INBOX_ARCHIVE, MESSAGE_REQUESTS, etc.
+export interface LeftPaneDialogProps {
+  mode: LeftPaneMode;
+  i18n: (key: string) => string;
+  // … any other props you already have …
+}
 
-// Add this case to the switch statement that renders different tabs\
-case LeftPaneMode.FILTER:
-return (
-    <SmartFilterTab
-      i18n={i18n}
-    />
-  );
+export function LeftPaneDialog({
+  mode,
+  i18n,
+  // … rest of your props …
+}: LeftPaneDialogProps) {
+  switch (mode) {
+    case LeftPaneMode.INBOX_ARCHIVE:
+      return <InboxArchiveTab i18n={i18n} /* …other props… */ />;
+  
+    case LeftPaneMode.MESSAGE_REQUESTS:
+      return <MessageRequestsTab i18n={i18n} /* …other props… */ />;
+
+    // ← your new filter case goes here
+    case LeftPaneMode.FILTER:
+      return (
+        <SmartFilterTab
+          i18n={i18n}
+          // … pass any other props SmartFilterTab needs …
+        />
+      );
+
+    // … other cases …
+
+    default:
+      return null;
+  }
+}
